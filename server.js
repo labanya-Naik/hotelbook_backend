@@ -5,24 +5,51 @@ const cors = require("cors");
 const Booking = require("./models/Booking");
 
 const app = express();
-app.use(cors(
-  {
-    origin: "*",
+
+/* =========================
+   ✅ CORS (Frontend Access)
+========================= */
+app.use(
+  cors({
+    origin: "*", // safe for college project
     methods: ["GET", "POST", "DELETE"],
-  }
-));
+  })
+);
+
 app.use(express.json());
 
-// ✅ MongoDB Connection
+/* =========================
+   ✅ MongoDB Connection
+   (Use MongoDB Atlas on Render)
+========================= */
 mongoose
-  .connect("mongodb://127.0.0.1:27017/hotelDB") // change if using Atlas
-  .then(() => console.log("✅ MongoDB Connected Successfully"))
-  .catch((err) => console.log("❌ MongoDB Connection Error:", err));
+  .connect(process.env.MONGO_URI)
+  .then(() => console.log("✅ MongoDB Connected"))
+  .catch((err) => console.log("❌ MongoDB Error:", err.message));
 
-/* ✅ API: Save Booking Data */
+/* =========================
+   ✅ Health Check (IMPORTANT)
+========================= */
+app.get("/", (req, res) => {
+  res.send("🚀 Hotel Booking Backend is running");
+});
+
+/* =========================
+   ✅ Save Booking
+========================= */
 app.post("/book", async (req, res) => {
   try {
-    const bookingData = req.body;
+    const bookingData = {
+      hotelName: req.body.hotelName,
+      roomType: req.body.roomType,
+      checkin: req.body.checkin,
+      checkout: req.body.checkout,
+      adults: Number(req.body.adults),
+      children: Number(req.body.children || 0),
+      email: req.body.email,
+      mobile: req.body.mobile,
+      requests: req.body.requests || "",
+    };
 
     const newBooking = new Booking(bookingData);
     await newBooking.save();
@@ -32,34 +59,44 @@ app.post("/book", async (req, res) => {
       booking: newBooking,
     });
   } catch (error) {
-    console.log("❌ Booking Save Error:", error);
-    res.status(500).json({ message: "❌ Booking Failed!" });
+    console.error("❌ Booking Save Error:", error.message);
+    res.status(500).json({
+      message: "❌ Server error while saving booking",
+    });
   }
 });
 
-/* ✅ API: Get All Bookings */
+/* =========================
+   ✅ Get All Bookings
+========================= */
 app.get("/bookings", async (req, res) => {
   try {
     const allBookings = await Booking.find().sort({ createdAt: -1 });
     res.json(allBookings);
   } catch (error) {
-    console.log("❌ Fetch Bookings Error:", error);
-    res.status(500).json({ message: "❌ Error fetching bookings" });
+    console.error("❌ Fetch Bookings Error:", error.message);
+    res.status(500).json({ message: "Server Error" });
   }
 });
 
-/* ✅ API: Delete Booking by ID */
+/* =========================
+   ✅ Delete Booking
+========================= */
 app.delete("/bookings/:id", async (req, res) => {
   try {
-    const id = req.params.id;
-    await Booking.findByIdAndDelete(id);
+    await Booking.findByIdAndDelete(req.params.id);
     res.json({ message: "✅ Booking Deleted Successfully!" });
   } catch (error) {
-    console.log("❌ Delete Booking Error:", error);
+    console.error("❌ Delete Error:", error.message);
     res.status(500).json({ message: "❌ Delete Failed!" });
   }
 });
 
-app.listen(5000, () => {
-  console.log("✅ Server running at http://localhost:5000");
+/* =========================
+   ✅ Start Server (Render)
+========================= */
+const PORT = process.env.PORT || 5000;
+
+app.listen(PORT, () => {
+  console.log(`✅ Server running on port ${PORT}`);
 });
